@@ -136,7 +136,7 @@ void Render(GameContext* ctx) {
 }
 
 int main() {
-    // 초기화 (Initialization)
+    // 초기화 (Initialization) - namespace
     GameContext game = { 5, 1, ' ' };
 
     printf("게임을 시작합니다. (정석 루프 패턴)\n");

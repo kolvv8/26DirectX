@@ -17,20 +17,22 @@
 
  // --- [전역 객체 관리] ---
  // DirectX 객체들은 GPU 메모리를 직접 사용함. 
+ // Device : gpu가 연결된 통로
+ // context : stream에 담아 보낼 command list
  // 사용 후 'Release()'를 호출하지 않으면 프로그램 종료 후에도 메모리가 점유될 수 있음(메모리 누수).
 ID3D11Device* g_pd3dDevice = nullptr;          // 리소스 생성자 (공장)
 ID3D11DeviceContext* g_pImmediateContext = nullptr;   // 그리기 명령 수행 (일꾼)
 IDXGISwapChain* g_pSwapChain = nullptr;          // 화면 전환 (더블 버퍼링)
-ID3D11RenderTargetView* g_pRenderTargetView = nullptr;   // 그림을 그릴 도화지(View)
+ID3D11RenderTargetView* g_pRenderTargetView = nullptr;   // 그림을 그릴 도화지(View), 그릇이라 생각하면 됨.
 
 struct Vertex {
     float x, y, z;
     float r, g, b, a;
 };
 
-// HLSL (High-Level Shading Language) 소스
+// HLSL (High-Level Shading Language) 소스    하나는 float가 3개,하나는 4개
 const char* shaderSource = R"(
-struct VS_INPUT { float3 pos : POSITION; float4 col : COLOR; };
+struct VS_INPUT { float3 pos : POSITION; float4 col : COLOR; }; 
 struct PS_INPUT { float4 pos : SV_POSITION; float4 col : COLOR; };
 
 PS_INPUT VS(VS_INPUT input) {
@@ -65,6 +67,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     ShowWindow(hWnd, nCmdShow);
 
     // 2. DX11 디바이스 및 스왑 체인 초기화
+    // win32는 draw를 활용하여 실시간으로 그려버림
+    // 메모리에 미리 그려 백버퍼에 넣어두고 한번에 스왑
     DXGI_SWAP_CHAIN_DESC sd = {};
     sd.BufferCount = 1;
     sd.BufferDesc.Width = 800; sd.BufferDesc.Height = 600;
@@ -97,7 +101,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 정점의 데이터 형식을 정의 (IA 단계에 알려줌)
     D3D11_INPUT_ELEMENT_DESC layout[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },  
     };
     ID3D11InputLayout* pInputLayout;
     g_pd3dDevice->CreateInputLayout(layout, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &pInputLayout);
@@ -146,7 +150,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             g_pImmediateContext->PSSetShader(pShader, nullptr, 0);
 
             // 최종 그리기
-            g_pImmediateContext->Draw(3, 0);
+            g_pImmediateContext->Draw(3, 0);    //3 : 몇개의 vertex를 그릴지
 
             // 화면 교체 (프론트 버퍼와 백 버퍼 스왑)
             g_pSwapChain->Present(0, 0);

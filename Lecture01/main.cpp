@@ -31,7 +31,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-// 2. WinMain: 프로그램의 진입점 (Entry Point)
+// 2. WinMain: 프로그램의 진입점 (Entry Point) / c 스타일 객체
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     // --- (A) 윈도우 클래스 등록 ---

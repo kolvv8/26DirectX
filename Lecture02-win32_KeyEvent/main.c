@@ -4,7 +4,7 @@
 /*
  * [하위 시스템과 진입점]
  * - /subsystem:console -> 창을 띄우되, 배후에 콘솔(검은 창)을 함께 띄움 (printf 디버깅용).
- * - /entry:WinMainCRTStartup -> 윈도우 프로그램의 시작점인 WinMain을 호출하라고 링커에게 명령함.
+ * - /entry:WinMainCRTStartup -> 윈도우 프로그램의 시작점인 WinMain을 호출하라고 링커에게 명령함.er
  */
 #pragma comment(linker, "/entry:WinMainCRTStartup /subsystem:console")
 
@@ -76,6 +76,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 /*
  * [WinMain - 프로그램의 심장부]
  */
+// hlnstance
+// hPrevInstance
+// lpCmdLine
+// nCmdShow
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     // (A) 윈도우 클래스 등록: 창의 '설계도'를 OS에 등록함.
@@ -90,6 +94,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     RegisterClassExW(&wcex);
 
     // (B) 윈도우 생성: 설계도를 바탕으로 실제 '객체(창)'를 메모리에 만듦.
+    // hWnd : 윈도우 컨트롤 -> gpu가 직접그릴수 있는 권한 부여 가능 or 여러개의 윈도우를 가진 앱에서 서로 커뮤니케이션하도록 짜는 등 가능.
     HWND hWnd = CreateWindowW(L"MyLectureClass", L"Input Study Window", WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, 800, 600, NULL, NULL, hInstance, NULL);
 
