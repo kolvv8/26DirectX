@@ -129,10 +129,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     wcex.lpfnWndProc = WndProc;
     wcex.hInstance = hInstance;
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wcex.lpszClassName = L"DX11MovingTriangle";
+    wcex.lpszClassName = L"DX11MovingHexagram";
     RegisterClassExW(&wcex);
 
-    HWND hWnd = CreateWindowW(L"DX11MovingTriangle", L"DirectX11 삼각형 이동",
+    HWND hWnd = CreateWindowW(L"DX11MovingHexagram", L"과제: 움직이는 육망성 만들기",
         WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 800, 600, nullptr, nullptr, hInstance, nullptr);
     ShowWindow(hWnd, nCmdShow);
 
