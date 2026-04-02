@@ -9,6 +9,10 @@
 #pragma comment(lib, "d3dcompiler.lib")
 
 // [비디오 설정 관리 구조체]
+// delta 타임을 중시 -> VSync를 키면, 모니터에서 신호가 올 때까지 기다림.
+// 0이 들어갔을 때 이점 -> 빨리 그리고 다음 프레임을 그리는 것이 좋을 때
+// 1이 들어갔을 떄
+// unreal : 트리플 버퍼링 활용
 struct VideoConfig 
 {
     int Width = 800;
@@ -46,7 +50,7 @@ void RebuildVideoResources(HWND hWnd)
         g_pRenderTargetView = nullptr;
     }
 
-    // 2. 백버퍼 크기 재설정
+    // 2. 백버퍼 크기 재설정 (현재 버퍼 삭제 후 버퍼 생성 -> 포인터 주소가 변경됨)
     g_pSwapChain->ResizeBuffers(0, g_Config.Width, g_Config.Height, DXGI_FORMAT_UNKNOWN, 0);
 
     // 3. 새 백버퍼로부터 렌더 타겟 뷰 다시 생성

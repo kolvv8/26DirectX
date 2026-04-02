@@ -84,6 +84,7 @@ public:
     float x, y, speed;
     bool moveUp, moveDown, moveLeft, moveRight;
 
+    // 컴포넌트를 껐다 켰다 해야됨 -> 객체를 초기화해주는 함수
     void Start() override 
     {
         x = 50.0f; y = 50.0f; speed = 150.0f;
@@ -291,6 +292,8 @@ int main()
 
     //게임루프 실행
     gLoop.Run();
+
+    // 메모리 해제
 
     return 0;
 }

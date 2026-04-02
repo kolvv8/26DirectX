@@ -89,6 +89,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // [중요] AdjustWindowRect: 우리가 원하는 '그림 영역'이 g_Config 크기가 되도록 
     // 타이틀바와 테두리 두께를 계산하여 전체 창 크기를 역산함.
+    // 버퍼 사이즈와 윈도우 사이즈를 맞추어 보여줌
     RECT rc = { 0, 0, g_Config.Width, g_Config.Height };
     AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 
@@ -132,7 +133,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     ID3D11PixelShader* pShader;
     g_pd3dDevice->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &vShader);
     g_pd3dDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &pShader);
-
+    // Viewport : 어디서부터 어디까지 그려야하는지 데이터를 가지고 있음.
+    // 뷰포트를 여러개 잡으면 각 화면에서 각각의 다른 디자인으로 구성 가능.
     /*
      typedef struct D3D11_INPUT_ELEMENT_DESC {
          LPCSTR                     SemanticName;         // 1. 의미 (이름)
@@ -200,6 +202,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             // [중요] Present의 역할
             // 다 그려진 백버퍼(g_Config 크기)를 실제 윈도우 창으로 전송함.
             // 윈도우 창 크기와 백버퍼 크기가 다르면 여기서 '강제 스케일링'이 발생하여 화질이 깨짐.
+            // 전체화면 : 백버퍼가 화면 해상도에 맞게 스트레칭됨-> 계단현상 발생 가능
             g_pSwapChain->Present(0, 0);
 
             /* Present(a,b)
