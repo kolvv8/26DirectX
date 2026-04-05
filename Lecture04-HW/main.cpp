@@ -1,22 +1,3 @@
-/*
-================================================================================
- [가이드: 게임 엔진의 뼈대 만들기]
-================================================================================
- 1. Component (기능): 캐릭터가 할 수 있는 '일' (이동, 시간 재기 등)
- 2. GameObject (객체): 게임에 존재하는 '물체' (플레이어, 타이머 등)
- 3. GameWorld (세계): 모든 물체를 담고 있는 '바구니'
-
- * 구조: Component -> GameObject -> GameWorld 순으로 확장됨.
-         (루프 한 번 돌 때 [입력 -> 업데이트 -> 렌더링] 순서로 모든 객체를 훑음.)
- [작동 원리]
- - Start(): 물체가 태어날 때 딱 한 번 실행되는 초기화 코드
- - Input(): 키보드/마우스 상태를 확인.
- - Update(): 수치(좌표 등)를 계산.
- - Render(): 화면에 결과를 출력.
-
-================================================================================
-*/
-
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -35,19 +16,6 @@ struct Vertex {
     float x, y, z;
     float r, g, b, a;
 };
-
-struct GameContext {
-    float posX;
-    float posY;
-    float speed;
-
-    bool keyUp;
-    bool keyDown;
-    bool keyLeft;
-    bool keyRight;
-};
-
-GameContext* g_pGame = nullptr;
 
 ID3D11Device* g_pd3dDevice = nullptr;
 ID3D11DeviceContext* g_pImmediateContext = nullptr;
@@ -70,124 +38,105 @@ PS_INPUT VS(VS_INPUT input) {
 float4 PS(PS_INPUT input) : SV_Target { return input.col; }
 )";
 
-// 콘솔의 특정 좌표로 커서를 이동시키는 함수
-void MoveCursor(int x, int y)
-{
-    // \033[y;xH  (y와 x는 1부터 시작함)
+void MoveCursor(int x, int y) {
     printf("\033[%d;%dH", y, x);
 }
 
-// [1단계: 컴포넌트 기저 클래스]
-// 모든 기능(이동, 렌더링 등)은 이 클래스를 상속받아야 함.
-class Component
-{
+class Component {
 public:
-    class GameObject* pOwner = nullptr; // 이 기능이 누구의 것인지 저장
-    bool isStarted = 0;           // Start()가 실행되었는지 체크
+    class GameObject* pOwner = nullptr;
+    bool isStarted = false;
 
-    virtual void Start() = 0;              // 초기화
-    virtual void Input() {}                // 입력 (선택사항)
-    virtual void Update(float dt) = 0;     // 로직 (필수)
-    virtual void Render() {}               // 그리기 (선택사항)
+    virtual void Start() = 0;
+    virtual void Input() {}
+    virtual void Update(float dt) = 0;
+    virtual void Render() {}
 
     virtual ~Component() {}
 };
 
-// [2단계: 게임 오브젝트 클래스]
-// 컴포넌트들을 담는 바구니 역할을 함.
 class GameObject {
 public:
     std::string name;
     std::vector<Component*> components;
 
-    GameObject(std::string n)
-    {
+    float x = 0.0f;
+    float y = 0.0f;
+
+    GameObject(std::string n) {
         name = n;
     }
 
-    // 객체가 죽을 때 담고 있던 컴포넌트들도 메모리에서 해제함
     ~GameObject() {
-        for (int i = 0; i < (int)components.size(); i++)
-        {
+        for (int i = 0; i < (int)components.size(); i++) {
             delete components[i];
         }
     }
 
-    // 새로운 기능을 추가하는 함수
-    void AddComponent(Component* pComp)
-    {
+    void AddComponent(Component* pComp) {
         pComp->pOwner = this;
         pComp->isStarted = false;
         components.push_back(pComp);
     }
 };
 
-// --- [3단계: 실제 구현할 기능 컴포넌트들] ---
-
-// 기능 1: 플레이어 조종 및 이동
 class PlayerControl : public Component {
 public:
-    float x, y, speed;
+    float speed;
     bool moveUp, moveDown, moveLeft, moveRight;
     int playerType = 0;
 
-    PlayerControl(int type)
-    {
+    float colorR, colorG, colorB;
+
+    PlayerControl(int type) {
         playerType = type;
     }
-    void Start() override
-    {
-        x = 50.0f; y = 50.0f; speed = 150.0f;
+
+    void Start() override {
+        speed = 1.0f;
         moveUp = moveDown = moveLeft = moveRight = false;
+
+        if (playerType == 0) {
+            pOwner->x = -0.5f; pOwner->y = 0.0f;
+            colorR = 1.0f; colorG = 0.0f; colorB = 0.0f;
+        }
+        else {
+            pOwner->x = 0.5f; pOwner->y = 0.0f;
+            colorR = 0.0f; colorG = 1.0f; colorB = 0.0f;
+        }
         printf("[%s] PlayerControl 기능 시작!\n", pOwner->name.c_str());
     }
 
-    // [입력 단계] 키 상태만 체크함
-    void Input() override
-    {
-        if (playerType == 0)
-        {
-            moveUp = (GetAsyncKeyState('W') & 0x8000);
-            moveDown = (GetAsyncKeyState('S') & 0x8000);
-            moveLeft = (GetAsyncKeyState('A') & 0x8000);
-            moveRight = (GetAsyncKeyState('D') & 0x8000);
-        }
-        if (playerType == 1)
-        {
+    void Input() override {
+        if (playerType == 0) {
             moveUp = (GetAsyncKeyState(VK_UP) & 0x8000);
             moveDown = (GetAsyncKeyState(VK_DOWN) & 0x8000);
             moveLeft = (GetAsyncKeyState(VK_LEFT) & 0x8000);
             moveRight = (GetAsyncKeyState(VK_RIGHT) & 0x8000);
         }
+        if (playerType == 1) {
+            moveUp = (GetAsyncKeyState('W') & 0x8000);
+            moveDown = (GetAsyncKeyState('S') & 0x8000);
+            moveLeft = (GetAsyncKeyState('A') & 0x8000);
+            moveRight = (GetAsyncKeyState('D') & 0x8000);
+        }
     }
 
-    // [업데이트 단계] 체크된 키 상태로 좌표만 계산함
-    void Update(float dt) override
-    {
-        if (moveUp)    y -= speed * dt;
-        if (moveDown)  y += speed * dt;
-        if (moveLeft)  x -= speed * dt;
-        if (moveRight) x += speed * dt;
+    void Update(float dt) override {
+        if (moveUp)    pOwner->y += speed * dt;
+        if (moveDown)  pOwner->y -= speed * dt;
+        if (moveLeft)  pOwner->x -= speed * dt;
+        if (moveRight) pOwner->x += speed * dt;
     }
 
-    // [렌더링 단계] 계산된 좌표를 화면에 그림
-    void Render() override
-    {
+    void Render() override {
         Vertex vertices[] = {
-            {  0.0f + x,  0.6f + y, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f },
-            {  0.4f + x, -0.3f + y, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f },
-            { -0.4f + x, -0.3f + y, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f },
+            {  0.0f + pOwner->x,  0.2f + pOwner->y, 0.5f, colorR, colorG, colorB, 1.0f },
+            {  0.2f + pOwner->x, -0.2f + pOwner->y, 0.5f, colorR, colorG, colorB, 1.0f },
+            { -0.2f + pOwner->x, -0.2f + pOwner->y, 0.5f, colorR, colorG, colorB, 1.0f },
         };
 
         g_pImmediateContext->UpdateSubresource(g_pVBuffer, 0, nullptr, vertices, 0, 0);
-
-        float clearColor[] = { 0.1f, 0.2f, 0.3f, 1.0f };
-        g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, clearColor);
-        g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, nullptr);
-
-        D3D11_VIEWPORT vp = { 0, 0, 800, 600, 0.0f, 1.0f };
-        g_pImmediateContext->RSSetViewports(1, &vp);
-        g_pImmediateContext->IASetInputLayout(g_pInputLayout);
 
         UINT stride = sizeof(Vertex), offset = 0;
         g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVBuffer, &stride, &offset);
@@ -196,150 +145,132 @@ public:
         g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
 
         g_pImmediateContext->Draw(3, 0);
-
-        g_pSwapChain->Present(1, 0);
     }
 };
 
-// 기능 2: 시스템 정보 출력 (위치 정보 없음)
-class InfoDisplay : public Component
-{
+class InfoDisplay : public Component {
 public:
     float totalTime = 0.0f;
 
-    void Start() override
-    {
+    void Start() override {
         totalTime = 0.0f;
         printf("[%s] InfoDisplay 기능 시작!\n", pOwner->name.c_str());
     }
 
-    void Update(float dt) override
-    {
+    void Update(float dt) override {
         totalTime += dt;
     }
 
     void Render() override {
-        // 화면 최상단에 정보 출력
-        MoveCursor(0, 0);
-        printf("System Time: %.2f sec\n", totalTime);
-        printf("Control: W, A, S, D | Exit: ESC\n");
+        MoveCursor(1, 1);
+        printf("System Time: %.2f sec                \n", totalTime);
+        printf("P1: Arrows | P2: WASD | F: Fullscreen | ESC: Exit\n");
     }
 };
 
-
-
-class GameLoop
-{
+class GameLoop {
 public:
     bool isRunning;
     std::vector<GameObject*> gameWorld;
     std::chrono::high_resolution_clock::time_point prevTime;
-    float deltaTime;   //delta time;
+    float deltaTime;
 
-    //초기화
-    void Initialize()
-    {
-        //초기화시 동작준비됨
+    void Initialize() {
         isRunning = true;
-
         gameWorld.clear();
-
-        // 시간 측정 준비
         prevTime = std::chrono::high_resolution_clock::now();
         deltaTime = 0.0f;
-
-
     }
 
-    void Input()
-    {
-        // esc 누르면 종료
+    void Input() {
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) isRunning = false;
 
-        // B. 입력 단계 (Input Phase)
-        for (int i = 0; i < (int)gameWorld.size(); i++)
-        {
-            for (int j = 0; j < (int)gameWorld[i]->components.size(); j++)
-            {
+        static bool isFKeyPressed = false;
+        if (GetAsyncKeyState('F') & 0x8000) {
+            if (!isFKeyPressed) {
+                BOOL isFullScreen;
+                g_pSwapChain->GetFullscreenState(&isFullScreen, nullptr);
+                g_pSwapChain->SetFullscreenState(!isFullScreen, nullptr);
+                isFKeyPressed = true;
+            }
+        }
+        else {
+            isFKeyPressed = false;
+        }
+
+        for (int i = 0; i < (int)gameWorld.size(); i++) {
+            for (int j = 0; j < (int)gameWorld[i]->components.size(); j++) {
                 gameWorld[i]->components[j]->Input();
             }
         }
     }
 
-    void Update()
-    {
-        // C. 스타트 실행
-        for (int i = 0; i < (int)gameWorld.size(); i++)
-        {
-            for (int j = 0; j < (int)gameWorld[i]->components.size(); j++)
-            {
-                // Start()가 호출된 적 없다면 여기서 호출 (유니티 방식)
-                if (gameWorld[i]->components[j]->isStarted == false)
-                {
+    void Update() {
+        for (int i = 0; i < (int)gameWorld.size(); i++) {
+            for (int j = 0; j < (int)gameWorld[i]->components.size(); j++) {
+                if (!gameWorld[i]->components[j]->isStarted) {
                     gameWorld[i]->components[j]->Start();
                     gameWorld[i]->components[j]->isStarted = true;
                 }
             }
         }
 
-        // D. 업데이트 단계 (Update Phase)
-        for (int i = 0; i < (int)gameWorld.size(); i++)
-        {
-            for (int j = 0; j < (int)gameWorld[i]->components.size(); j++)
-            {
+        for (int i = 0; i < (int)gameWorld.size(); i++) {
+            for (int j = 0; j < (int)gameWorld[i]->components.size(); j++) {
                 gameWorld[i]->components[j]->Update(deltaTime);
             }
         }
     }
 
-    void Render()
-    {
-        // E. 렌더링 단계 (Render Phase)
-        system("cls");
-        for (int i = 0; i < (int)gameWorld.size(); i++)
-        {
-            for (int j = 0; j < (int)gameWorld[i]->components.size(); j++)
-            {
+    void Render() {
+        float clearColor[] = { 0.1f, 0.2f, 0.3f, 1.0f };
+        g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, clearColor);
+        g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, nullptr);
+
+        D3D11_VIEWPORT vp = { 0, 0, 800, 600, 0.0f, 1.0f };
+        g_pImmediateContext->RSSetViewports(1, &vp);
+        g_pImmediateContext->IASetInputLayout(g_pInputLayout);
+
+        for (int i = 0; i < (int)gameWorld.size(); i++) {
+            for (int j = 0; j < (int)gameWorld[i]->components.size(); j++) {
                 gameWorld[i]->components[j]->Render();
+            }
+        }
+
+        g_pSwapChain->Present(1, 0);
+    }
+
+    void Run() {
+        MSG msg = { 0 };
+        while (isRunning) {
+            if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                if (msg.message == WM_QUIT) {
+                    break;
+                }
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+            else {
+                std::chrono::high_resolution_clock::time_point currentTime = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<float> elapsed = currentTime - prevTime;
+                deltaTime = elapsed.count();
+                prevTime = currentTime;
+
+                Input();
+                Update();
+                Render();
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
             }
         }
     }
 
-
-
-    void Run()
-    {
-        // --- [무한 게임 루프] ---
-        while (isRunning) {
-
-            // A. 시간 관리 (DeltaTime 계산)
-            std::chrono::high_resolution_clock::time_point currentTime = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<float> elapsed = currentTime - prevTime;
-            deltaTime = elapsed.count();
-            prevTime = currentTime;
-
-            Input();
-            Update();
-            Render();
-
-            // CPU 과부하 방지 (약 60~100 FPS 유지 시도)
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    GameLoop() { Initialize(); }
+    ~GameLoop() {
+        for (int i = 0; i < (int)gameWorld.size(); i++) {
+            delete gameWorld[i];
         }
     }
-
-    GameLoop()
-    {
-        Initialize();
-    }
-    ~GameLoop()
-    {
-        // [정리] 메모리 해제
-        for (int i = 0; i < (int)gameWorld.size(); i++)
-        {
-            delete gameWorld[i]; // GameObject 소멸자가 컴포넌트들도 지움
-        }
-    }
-
 };
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -347,23 +278,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
-// --- [4단계: 메인 엔진 루프] ---
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    GameContext game = { 0 };
-    game.posX = 0.0f;
-    game.posY = 0.0f;
-    game.speed = 0.01f;
-
-    g_pGame = &game;
-
     WNDCLASSEXW wcex = { sizeof(WNDCLASSEX) };
     wcex.lpfnWndProc = WndProc;
     wcex.hInstance = hInstance;
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wcex.lpszClassName = L"DX11MovingHexagram";
+    wcex.lpszClassName = L"DX11ComponentEngine";
     RegisterClassExW(&wcex);
 
-    HWND hWnd = CreateWindowW(L"DX11MovingHexagram", L"과제: 움직이는 육망성 만들기",
+    HWND hWnd = CreateWindowW(L"DX11ComponentEngine", L"과제: 컴포넌트 기반 게임 오브젝트 시스템 구현",
         WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 800, 600, nullptr, nullptr, hInstance, nullptr);
     ShowWindow(hWnd, nCmdShow);
 
@@ -398,33 +321,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     g_pd3dDevice->CreateInputLayout(layout, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &g_pInputLayout);
     vsBlob->Release(); psBlob->Release();
 
-    D3D11_BUFFER_DESC bd = { sizeof(Vertex) * 6, D3D11_USAGE_DEFAULT, D3D11_BIND_VERTEX_BUFFER, 0, 0, 0 };
+    D3D11_BUFFER_DESC bd = { sizeof(Vertex) * 3, D3D11_USAGE_DEFAULT, D3D11_BIND_VERTEX_BUFFER, 0, 0, 0 };
     g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pVBuffer);
 
-    //게임루프
     GameLoop gLoop;
-    gLoop.Initialize();
 
-    // 시스템 정보 객체 조립
     GameObject* sysInfo = new GameObject("SystemManager");
     sysInfo->AddComponent(new InfoDisplay());
     gLoop.gameWorld.push_back(sysInfo);
 
-    // 플레이어 객체 조립
     GameObject* player1 = new GameObject("Player1");
     player1->AddComponent(new PlayerControl(0));
     gLoop.gameWorld.push_back(player1);
 
-    // 플레이어 객체 조립
     GameObject* player2 = new GameObject("Player2");
     player2->AddComponent(new PlayerControl(1));
     gLoop.gameWorld.push_back(player2);
 
-
-    //게임루프 실행
     gLoop.Run();
 
-
+    g_pVBuffer->Release();
+    g_pInputLayout->Release();
+    g_pVertexShader->Release();
+    g_pPixelShader->Release();
+    g_pRenderTargetView->Release();
+    g_pSwapChain->Release();
+    g_pImmediateContext->Release();
+    g_pd3dDevice->Release();
 
     return 0;
 }
