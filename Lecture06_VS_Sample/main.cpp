@@ -194,7 +194,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             col = col / (2*pie);
 
             float4 colorMat = {
-                col,col,col,1
+                col, col, col,1
             };
 
             return colorMat;
