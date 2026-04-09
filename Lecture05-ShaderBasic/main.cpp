@@ -2,6 +2,7 @@
 ================================================================================
  [HLSL: High-Level Shading Language]
 ================================================================================
+GLSL <- HLSL의 카피느낌
 
  1. HLSL이란 무엇인가? (Definition)
     - Microsoft에서 DirectX API를 위해 개발한 '고수준 셰이딩 언어'임.
@@ -45,6 +46,7 @@
                                     +---------------------------------------------------------------------------+
                                     |  [1. Input Assembler (IA)] - 입구/분류                                    |
                                     |  - 메모리 조각들을 모아서 '점(Vertex)' 단위로 조립함.                     |
+                                    |  - 규격에 맞추어 정렬 + 정렬하여 gpu에 전달                               |
                                     |  - InputLayout을 보고 "이건 위치, 이건 색상"이라고 라벨을 붙임.           |
                                     +----------------------+----------------------------------------------------+
                                                                         |
@@ -66,7 +68,7 @@
                                                                         v
                                     +----------------------+----------------------------------------------------+
                                     |  [4. Pixel Shader (PS)] - 색상 처리 (채색) <--- **프로그래밍 가능**       |
-                                    |  - 결정된 각 픽셀의 최종 색상을 계산함.                                   |
+                                    |  - 결정된 각 픽셀의 최종 색상을 계산함. / 실제 fragment와 매칭            |
                                     |  - 조명(Lighting), 텍스처(Texture), 그림자 효과를 여기서 처리함.          |
                                     +----------------------+----------------------------------------------------+
                                                                         |
@@ -74,7 +76,7 @@
                                     +----------------------+----------------------------------------------------+
                                     |  [5. Output Merger (OM)] - 최종 병합/출력                                 |
                                     |  - 픽셀 셰이더가 만든 색상을 '백버퍼(도화지)'에 실제로 그림.              |
-                                    |  - 깊이 테스트(Depth Test)를 통해 앞뒤 관계를 따져서 가려진 곳을 처리함.  |
+                                    |  - 깊이 테스트(Depth Test)를 통해 앞뒤 관계를 따져서 가려진 곳을 처리함. (stencil 버퍼는 어려워서 제외 - compositing) |
                                     +---------------------------------------------------------------------------+
                                                                         |
                                                                         v
@@ -275,7 +277,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     ================================================================================
     */
     
-    
+    // 주석이 잘 안보이면 .fx파일로 만들어서 보기
     const char* shaderSource = R"(
 
         // [1. 입력 데이터 구조체]
@@ -293,6 +295,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         {
             // SV_POSITION: System Value의 약자. 
             // GPU가 "아, 이게 최종적으로 화면 어디에 찍힐 좌표구나!"라고 인식하게 함. (필수)
+            // float4 : 4개짜리 vector
+            // float4 pos -> (x, y, z, w) 동차좌표계
             float4 pos : SV_POSITION; 
             float4 col : COLOR;        // 색상은 그대로 전달함.
         };
@@ -302,10 +306,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // - 역할: 각 점(Vertex)의 위치를 결정함. 
         // - 특징: 삼각형의 점이 3개라면 이 함수는 총 3번 실행됨.
         // -----------------------------------------------------------------------------
+        // 속성값에 따라 다르게 작동하도록 코드를 짜줘야됨
+
         PS_INPUT VS_Main(VS_INPUT input)
         {
             PS_INPUT output;
-
+            
             // 3D 좌표(float3)를 4D 좌표(float4)로 확장함.
             // 마지막 1.0f(w값)는 행렬 연산과 투영을 위해 필요함.
             output.pos = float4(input.pos, 1.0f);
@@ -322,6 +328,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // - 특징: 삼각형 내부를 채우는 수만 개의 픽셀 수만큼 실행됨 (가장 연산량이 많음).
         // -----------------------------------------------------------------------------
         // SV_Target: 이 함수가 리턴하는 값이 '현재 렌더 타겟(도화지)'에 그려질 색상임을 뜻함.
+        // : SV_Target - goto랑 비슷
         float4 PS_Main(PS_INPUT input) : SV_Target
         {
             // 정점 셰이더에서 넘겨받은 색상을 그대로 반환함.
@@ -329,6 +336,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             return input.col;
         }
     )";
+    // main함수에 얼마 돌리겠다 할 수는 있지만 메모리에 유지할 수 없어 몇프레임 돌렸는지 알 수 없음 : 삼각형 회전 안됨
+    // -> 데이터를 constant buffer를 활용하여 넘길 수 있음.
+
     ID3DBlob* vsBlob, * psBlob;
     D3DCompile(shaderSource, strlen(shaderSource), nullptr, nullptr, nullptr, "VS_Main", "vs_4_0", 0, 0, &vsBlob, nullptr);
     D3DCompile(shaderSource, strlen(shaderSource), nullptr, nullptr, nullptr, "PS_Main", "ps_4_0", 0, 0, &psBlob, nullptr);

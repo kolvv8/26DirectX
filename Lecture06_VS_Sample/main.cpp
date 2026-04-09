@@ -60,7 +60,9 @@ using namespace DirectX;
 // HLSL의 cbuffer와 1:1로 매칭되어야 함 (16바이트 정렬 주의)
 struct ConstantData {
     XMFLOAT2 offset;    // x, y 이동값 (8바이트)
-    float padding[2];   // 16바이트 단위를 맞추기 위한 빈 공간 (8바이트)
+    float theta;
+    bool checkRotate;
+    bool padding[3];   // 16바이트 단위를 맞추기 위한 빈 공간 (8바이트)
 };
 
 struct VideoConfig {
@@ -89,6 +91,8 @@ struct Vertex {
 
 // [실시간 이동을 위한 오프셋 변수]
 XMFLOAT2 g_CurOffset = { 0.0f, 0.0f };
+float g_Curtheta = 0.0f;
+bool g_CurRotate = false;
 
 void RebuildVideoResources(HWND hWnd) {
     if (!g_pSwapChain) return;
@@ -115,8 +119,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     WNDCLASSEXW wcex = { sizeof(WNDCLASSEX) };
     wcex.lpfnWndProc = WndProc;
-    wcex.hInstance = hInstance;
-    wcex.lpszClassName = L"DX11MoveClass";
+    wcex.hInstance = hInstance; ++++++++
+        wcex.lpszClassName = L"DX11MoveClass";
     RegisterClassExW(&wcex);
 
     RECT rc = { 0, 0, g_Config.Width, g_Config.Height };
@@ -145,7 +149,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         cbuffer MoveBuffer : register(b0) // 상수 버퍼 슬롯 b0 사용
         {
             float2 g_Offset; // CPU에서 보내준 x, y 이동값
-            float2 g_Padding;
+            float g_theta;
+            bool check;
         };
 
         struct VS_INPUT {
@@ -165,14 +170,35 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             float3 finalPos = input.pos;
             finalPos.x += g_Offset.x;
             finalPos.y += g_Offset.y;
+            
+            float curX = finalPos.x;
+            float curY = finalPos.y;
 
+            finalPos.x = cos(g_theta) * curX - sin(g_theta) *curY;
+            finalPos.y = sin(g_theta) *curX + cos(g_theta) * curY;
+            
+                        
             output.pos = float4(finalPos, 1.0f);
             output.col = input.col;
             return output;
         }
 
         float4 PS_Main(PS_INPUT input) : SV_Target {
-            return input.col;
+            float pie = 3.141592f;
+            float ang = fmod(abs(g_theta), 4*pie);
+            float col;
+
+            if (ang<2*pie) col = ang;
+            else col = 4*pie - ang;
+
+            col = col / (2*pie);
+
+            float4 colorMat = {
+                col,col,col,1
+            };
+
+            return colorMat;
+
         }
     )";
 
@@ -219,6 +245,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             if (GetAsyncKeyState(VK_UP))    g_CurOffset.y += moveSpeed;
             if (GetAsyncKeyState(VK_DOWN))  g_CurOffset.y -= moveSpeed;
 
+            if (GetAsyncKeyState('Q')) g_Curtheta += moveSpeed * 5.0f;
+            if (GetAsyncKeyState('E')) g_Curtheta -= moveSpeed * 5.0f;
+
             if (GetAsyncKeyState('1') & 0x0001) { g_Config.Width = 800; g_Config.Height = 600; g_Config.NeedsResize = true; }
             if (GetAsyncKeyState('2') & 0x0001) { g_Config.Width = 1280; g_Config.Height = 720; g_Config.NeedsResize = true; }
             if (g_Config.NeedsResize) RebuildVideoResources(hWnd);
@@ -228,9 +257,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, clearColor);
 
             // [3. 상수 버퍼 데이터 업데이트 및 전송]
-            ConstantData cbData = { g_CurOffset };
+            ConstantData cbData[2] = {g_CurOffset, g_Curtheta};
             g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cbData, 0, 0);
             g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer); // VS의 0번 슬롯(b0)에 바인딩
+            g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 
             D3D11_VIEWPORT vp = { 0.0f, 0.0f, (float)g_Config.Width, (float)g_Config.Height, 0.0f, 1.0f };
             g_pImmediateContext->RSSetViewports(1, &vp);
