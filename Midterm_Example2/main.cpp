@@ -14,10 +14,11 @@ using namespace DirectX;
 struct ConstantData {
     XMFLOAT2 offset;
     float rotation; 
-    
+    float padding;  
+
 };
 
-struct VideoConfig {
+struct VideoConfig {    
     int Width = 800;
     int Height = 600;
     bool IsFullscreen = false;
@@ -110,7 +111,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         {
             float2 g_Offset;
             float g_Rotation;
-            //float g_Padding;
+            float g_Padding;
         };
 
         struct VS_INPUT 

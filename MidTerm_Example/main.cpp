@@ -15,7 +15,7 @@ class Component
 public:
     class GameObject* pOwner = nullptr;
     bool isStarted = false;
-
+    
     // 1번문제
     virtual void Start();
     virtual void Update(float dt);
@@ -36,6 +36,10 @@ public:
 
     ~GameObject() 
     {
+        for (auto k : components) {
+            delete k->pOwner;
+        }
+        
         //4번문제 버그발생지점
     }
 
@@ -52,7 +56,7 @@ public:
     float x, y, speed;
     bool moveUp, moveDown, moveLeft, moveRight;
 
-    void Start() override
+   void Start() override
     {
         x = 50.0f; y = 50.0f; speed = 150.0f;
         moveUp = moveDown = moveLeft = moveRight = false;
