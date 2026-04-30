@@ -1,11 +1,11 @@
-/*
+ï»¿/*
 ================================================================================
  [Engine Architecture]
- 1. WindowContext: Win32 Ã¢ »ı¼º ¹× ¸Ş½ÃÁö ·çÇÁ °ü¸®
- 2. GraphicsContext: DX11 µğ¹ÙÀÌ½º, ½º¿ÒÃ¼ÀÎ, ¼ÎÀÌ´õ ÄÄÆÄÀÏ ¹× ¿µ»ó ¼³Á¤ °ü¸®
- 3. DeltaTime: °íÇØ»óµµ Å¸ÀÌ¸Ó¸¦ ÀÌ¿ëÇÑ ½Ã°£ °è»ê
- 4. GameObject & Component: °´Ã¼ ÁöÇâÀû ±â´É È®Àå ±¸Á¶
- 5. GameLoop: ÀüÃ¼ Èå¸§(Input-Update-Render) Á¦¾î
+ 1. WindowContext: Win32 ì°½ ìƒì„± ë° ë©”ì‹œì§€ ë£¨í”„ ê´€ë¦¬
+ 2. GraphicsContext: DX11 ë””ë°”ì´ìŠ¤, ìŠ¤ì™‘ì²´ì¸, ì…°ì´ë” ì»´íŒŒì¼ ë° ì˜ìƒ ì„¤ì • ê´€ë¦¬
+ 3. DeltaTime: ê³ í•´ìƒë„ íƒ€ì´ë¨¸ë¥¼ ì´ìš©í•œ ì‹œê°„ ê³„ì‚°
+ 4. GameObject & Component: ê°ì²´ ì§€í–¥ì  ê¸°ëŠ¥ í™•ì¥ êµ¬ì¡°
+ 5. GameLoop: ì „ì²´ íë¦„(Input-Update-Render) ì œì–´
 ================================================================================
 */
 
@@ -100,17 +100,7 @@ public:
 };
 
 class GraphicsContext {
-private:
-
-    static GraphicsContext* g_cInstance;
-
-    GraphicsContext() : Device(nullptr), ImmediateContext(nullptr), SwapChain(nullptr), RTV(nullptr), IsFullscreen(false), VSync(1){
-        std::cout << "GraphicsContext: ±×·¡ÇÈ ÄÁÅØ½ºÆ® °´Ã¼°¡ »ı¼ºµÊ.\n";
-    }
-
-    GraphicsContext(const GraphicsContext&) = delete;
-    GraphicsContext& operator=(const GraphicsContext&) = delete;
-
+public:
     ID3D11Device* Device = nullptr;
     ID3D11DeviceContext* ImmediateContext = nullptr;
     IDXGISwapChain* SwapChain = nullptr;
@@ -118,15 +108,6 @@ private:
 
     bool IsFullscreen = false;
     int VSync = 1;
-
-public:
-
-    static GraphicsContext* GetInstance() {
-        if (g_cInstance == nullptr) {
-            g_cInstance = new GraphicsContext();
-        }
-        return g_cInstance;
-    }
 
     bool InitDX(HWND hWnd, int w, int h)
     {
@@ -142,22 +123,6 @@ public:
 
         return SUCCEEDED(hr) && CreateRTV(w, h);
     }
-
-    ID3D11Device* GetDevice() const { return Device; }
-    ID3D11DeviceContext* GetImmediateContext() const { return ImmediateContext; }
-    IDXGISwapChain* GetSwapChain() const { return SwapChain; }
-    ID3D11RenderTargetView* GetRTV() const { return RTV; }
-    bool GetIsFullscreen() const { return IsFullscreen; }
-    int GetVSync() const { return VSync; }
-
-    static void Release() {
-        if (g_cInstance) {
-            delete g_cInstance;
-            g_cInstance = nullptr;
-            std::cout << "GraphicContext: ±×·¡ÇÈ ÄÁÅØ½ºÆ® °´Ã¼°¡ ÇØÁ¦µÊ.\n";
-        }
-    }
-
 
     bool CreateRTV(int w, int h)
     {
@@ -201,8 +166,6 @@ public:
     }
 };
 
-GraphicsContext* GraphicsContext::g_cInstance = nullptr;
-
 class GameObject;
 class Component
 {
@@ -211,10 +174,10 @@ public:
     bool isStarted = false;
 
     Component() {}
-    virtual void Start() = 0;
-    virtual void Input() = 0; // ÄÄÆ÷³ÍÆ® ·¹º§ÀÇ ÀÔ·Â Ã³¸®
+    virtual void Start(GraphicsContext* gfx) = 0;
+    virtual void Input() = 0; // ì»´í¬ë„ŒíŠ¸ ë ˆë²¨ì˜ ì…ë ¥ ì²˜ë¦¬
     virtual void Update(float dt) = 0;
-    virtual void Render() = 0;
+    virtual void Render(GraphicsContext* gfx) = 0;
     virtual ~Component() {}
 };
 
@@ -246,7 +209,7 @@ public:
 
     void Input()
     {
-        // ÀÎµ¦½º ±â¹İ ·çÇÁ·Î ÇÏÀ§ ÄÄÆ÷³ÍÆ®ÀÇ Input È£Ãâ
+        // ì¸ë±ìŠ¤ ê¸°ë°˜ ë£¨í”„ë¡œ í•˜ìœ„ ì»´í¬ë„ŒíŠ¸ì˜ Input í˜¸ì¶œ
         int componentCount = (int)components.size();
         for (int i = 0; i < componentCount; i++)
         {
@@ -257,7 +220,7 @@ public:
         }
     }
 
-    void Update(float dt)
+    void Update(float dt, GraphicsContext* gfx)
     {
         for (int j = 0; j < (int)components.size(); j++)
         {
@@ -265,7 +228,7 @@ public:
             {
                 if (components[j]->isStarted == false)
                 {
-                    components[j]->Start();
+                    components[j]->Start(gfx);
                     components[j]->isStarted = true;
                 }
 
@@ -279,7 +242,7 @@ public:
         {
             if (components[i] != nullptr)
             {
-                components[i]->Render();
+                components[i]->Render(gfx);
             }
         }
     }
@@ -315,12 +278,10 @@ class MeshRenderer : public Component
 {
     Mesh* pMeshData = nullptr;
     ID3D11Buffer* cBuffer = nullptr;
-    GraphicsContext* gfx;
 
 public:
     MeshRenderer(Mesh* mesh) : Component(), pMeshData(mesh)
     {
-        gfx = gfx->GetInstance();
     }
 
     ~MeshRenderer()
@@ -329,34 +290,34 @@ public:
         if (pMeshData) delete pMeshData;
     }
 
-    void Start() override
+    void Start(GraphicsContext* gfx) override
     {
         D3D11_BUFFER_DESC cbd = { 0 };
         cbd.Usage = D3D11_USAGE_DEFAULT;
         cbd.ByteWidth = sizeof(ConstantBuffer);
         cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 
-        gfx->GetDevice()->CreateBuffer(&cbd, nullptr, &cBuffer);
+        gfx->Device->CreateBuffer(&cbd, nullptr, &cBuffer);
     }
 
-    void Render() override
+    void Render(GraphicsContext* gfx) override
     {
         if (pMeshData == nullptr || pMeshData->vBuffer == nullptr) return;
 
-        gfx->GetImmediateContext()->IASetInputLayout(pMeshData->pInputLayout);
-        gfx->GetImmediateContext()->VSSetShader(pMeshData->pVS, nullptr, 0);
-        gfx->GetImmediateContext()->PSSetShader(pMeshData->pPS, nullptr, 0);
+        gfx->ImmediateContext->IASetInputLayout(pMeshData->pInputLayout);
+        gfx->ImmediateContext->VSSetShader(pMeshData->pVS, nullptr, 0);
+        gfx->ImmediateContext->PSSetShader(pMeshData->pPS, nullptr, 0);
 
         float s = 1.0f / (pOwner->pos.z + 1.0f);
         XMMATRIX world = XMMatrixScaling(s, s, s) * XMMatrixRotationZ(pOwner->rot.z) * XMMatrixTranslation(pOwner->pos.x, pOwner->pos.y, 0.0f);
         ConstantBuffer cb;
         cb.matWorld = XMMatrixTranspose(world);
-        gfx->GetImmediateContext()->UpdateSubresource(cBuffer, 0, nullptr, &cb, 0, 0);
+        gfx->ImmediateContext->UpdateSubresource(cBuffer, 0, nullptr, &cb, 0, 0);
 
         UINT stride = sizeof(Vertex), offset = 0;
-        gfx->GetImmediateContext()->IASetVertexBuffers(0, 1, &pMeshData->vBuffer, &stride, &offset);
-        gfx->GetImmediateContext()->VSSetConstantBuffers(0, 1, &cBuffer);
-        gfx->GetImmediateContext()->Draw(pMeshData->vertexCount, 0);
+        gfx->ImmediateContext->IASetVertexBuffers(0, 1, &pMeshData->vBuffer, &stride, &offset);
+        gfx->ImmediateContext->VSSetConstantBuffers(0, 1, &cBuffer);
+        gfx->ImmediateContext->Draw(pMeshData->vertexCount, 0);
     }
     void Input() override {}
     void Update(float dt) override {}
@@ -364,10 +325,10 @@ public:
 
 class PlayerController : public Component
 {
-    // ÀÔ·Â »óÅÂ¸¦ ÀúÀåÇÏ±â À§ÇÑ ¸â¹ö º¯¼ö (³»ºÎ¿ë)
-    XMFLOAT2 moveDir;  // x: ÁÂ¿ì, y: »óÇÏ
-    float    rotDir;   // È¸Àü ¹æÇâ
-    float    zoomDir;  // È®´ë/Ãà¼Ò ¹æÇâ
+    // ì…ë ¥ ìƒíƒœë¥¼ ì €ì¥í•˜ê¸° ìœ„í•œ ë©¤ë²„ ë³€ìˆ˜ (ë‚´ë¶€ìš©)
+    XMFLOAT2 moveDir;  // x: ì¢Œìš°, y: ìƒí•˜
+    float    rotDir;   // íšŒì „ ë°©í–¥
+    float    zoomDir;  // í™•ëŒ€/ì¶•ì†Œ ë°©í–¥
 
 public:
     PlayerController() : Component()
@@ -381,50 +342,50 @@ public:
     {
     }
 
-    void Start() override
+    void Start(GraphicsContext* gfx) override
     {
     }
 
-    // [Step 1] ÀÔ·Â °¨Áö ¹× »óÅÂ ÀúÀå
+    // [Step 1] ì…ë ¥ ê°ì§€ ë° ìƒíƒœ ì €ì¥
     void Input() override
     {
-        // ¸Å ÇÁ·¹ÀÓ ÀÔ·Â »óÅÂ ÃÊ±âÈ­
+        // ë§¤ í”„ë ˆì„ ì…ë ¥ ìƒíƒœ ì´ˆê¸°í™”
         moveDir = { 0, 0 };
         rotDir = 0.0f;
         zoomDir = 0.0f;
 
-        // ¹æÇâÅ° ÀÔ·Â (ÀÌµ¿)
+        // ë°©í–¥í‚¤ ì…ë ¥ (ì´ë™)
         if (GetAsyncKeyState(VK_UP) & 0x8000)    moveDir.y += 1.0f;
         if (GetAsyncKeyState(VK_DOWN) & 0x8000)  moveDir.y -= 1.0f;
         if (GetAsyncKeyState(VK_LEFT) & 0x8000)  moveDir.x -= 1.0f;
         if (GetAsyncKeyState(VK_RIGHT) & 0x8000) moveDir.x += 1.0f;
 
-        // AD Å° ÀÔ·Â (È¸Àü)
+        // AD í‚¤ ì…ë ¥ (íšŒì „)
         if (GetAsyncKeyState('A') & 0x8000) rotDir += 1.0f;
         if (GetAsyncKeyState('D') & 0x8000) rotDir -= 1.0f;
 
-        // WS Å° ÀÔ·Â (ÁÜ)
+        // WS í‚¤ ì…ë ¥ (ì¤Œ)
         if (GetAsyncKeyState('W') & 0x8000) zoomDir -= 1.0f;
         if (GetAsyncKeyState('S') & 0x8000) zoomDir += 1.0f;
     }
 
-    // [Step 2] ÀúÀåµÈ »óÅÂ¸¦ ¹ÙÅÁÀ¸·Î µ¥ÀÌÅÍ °»½Å
+    // [Step 2] ì €ì¥ëœ ìƒíƒœë¥¼ ë°”íƒ•ìœ¼ë¡œ ë°ì´í„° ê°±ì‹ 
     void Update(float dt) override
     {
-        // 1. ¼Óµµ Á¤ÀÇ (»çÀÌÁî ºñ·Ê ¼Óµµ Àû¿ë °¡´É)
+        // 1. ì†ë„ ì •ì˜ (ì‚¬ì´ì¦ˆ ë¹„ë¡€ ì†ë„ ì ìš© ê°€ëŠ¥)
         float speedFactor = pOwner->scale.x;
         float moveSpeed = 2.0f * speedFactor;
         float rotateSpeed = 3.0f * speedFactor;
         float zoomSpeed = 5.0f * speedFactor;
 
-        // 2. À§Ä¡ ¾÷µ¥ÀÌÆ®
+        // 2. ìœ„ì¹˜ ì—…ë°ì´íŠ¸
         pOwner->pos.x += moveDir.x * moveSpeed * dt;
         pOwner->pos.y += moveDir.y * moveSpeed * dt;
 
-        // 3. È¸Àü ¾÷µ¥ÀÌÆ®
+        // 3. íšŒì „ ì—…ë°ì´íŠ¸
         pOwner->rot.z += rotDir * rotateSpeed * dt;
 
-        // 4. ÁÜ(ZÃà) ¾÷µ¥ÀÌÆ® ¹× Á¦ÇÑ
+        // 4. ì¤Œ(Zì¶•) ì—…ë°ì´íŠ¸ ë° ì œí•œ
         pOwner->pos.z += zoomDir * zoomSpeed * dt;
 
         if (pOwner->pos.z < -0.9f)
@@ -433,28 +394,58 @@ public:
         }
     }
 
-    void Render() override
+    void Render(GraphicsContext* gfx) override
     {
     }
 };
 
+
+
 class GameLoop
 {
-public:
+private:
+
+    static GameLoop* m_pInstance;
+
+    GameLoop() : world() {
+        world.clear();
+        std::cout << "GameLoop: ê²Œì„ë£¨í”„ ê°ì²´ê°€ ìƒì„±ë¨.\n";
+    }
+
+    GameLoop(const GameLoop&) = delete;
+    GameLoop& operator=(const GameLoop&) = delete;
+
     WindowContext win;
-    GraphicsContext* gfx;
+    GraphicsContext gfx;
     DeltaTime timer;
     std::vector<GameObject*> world;
+
+public:
+    static GameLoop* GetInstance() {
+        if (m_pInstance == nullptr) {
+            m_pInstance = new GameLoop();
+        }
+        return m_pInstance;
+    }
+
+    WindowContext& Getwin() { return win; };
+    GraphicsContext& Getgfx() { return gfx; };
+    DeltaTime& Gettimer() { return timer; };
+    std::vector<GameObject*>& Getworld() { return world; };
+
+
     bool isRunning = true;
 
     ID3D11VertexShader* pDefaultVS = nullptr;
     ID3D11PixelShader* pDefaultPS = nullptr;
     ID3D11InputLayout* pDefaultLayout = nullptr;
 
-    GameLoop() : isRunning(true)
-    {
-        world.clear();
-        printf("[Engine] GameLoop Created.\n");
+    static void Release() {
+        if (m_pInstance) {
+            delete m_pInstance;
+            m_pInstance = nullptr;
+            std::cout << "VideoSystem: ì‹œìŠ¤í…œ ê°ì²´ê°€ í•´ì œë¨.\n";
+        }
     }
 
     ~GameLoop()
@@ -472,15 +463,14 @@ public:
         if (pDefaultLayout) pDefaultLayout->Release();
         if (pDefaultVS) pDefaultVS->Release();
         if (pDefaultPS) pDefaultPS->Release();
-
+        m_pInstance->Release();
         printf("[Engine] GameLoop Destroyed. All resources released.\n");
     }
 
     void Initialize(HINSTANCE hInst, LRESULT(CALLBACK* wndProc)(HWND, UINT, WPARAM, LPARAM))
     {
         win.Initialize(hInst, 800, 600, wndProc);
-        gfx = gfx->GetInstance();
-        gfx->InitDX(win.hWnd, 800, 600);
+        gfx.InitDX(win.hWnd, 800, 600);
     }
 
     void Input()
@@ -488,28 +478,28 @@ public:
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
             isRunning = false;
         if (GetAsyncKeyState('F') & 0x0001)
-            gfx->SetFullscreen(!gfx->GetIsFullscreen());
+            gfx.SetFullscreen(!gfx.IsFullscreen);
 
-        if (GetAsyncKeyState('C') & 0x0001) // 0x0001Àº ÀÌ¹ø ÇÁ·¹ÀÓ¿¡ ´­·È´ÂÁö È®ÀÎ(Toggle)
+        if (GetAsyncKeyState('C') & 0x0001) // 0x0001ì€ ì´ë²ˆ í”„ë ˆì„ì— ëˆŒë ¸ëŠ”ì§€ í™•ì¸(Toggle)
         {
-            // 1. ³»ºÎ º¯¼ö ¾÷µ¥ÀÌÆ®
+            // 1. ë‚´ë¶€ ë³€ìˆ˜ ì—…ë°ì´íŠ¸
             win.Width = 600;
             win.Height = 600;
 
-            // 2. ½ÇÁ¦ Win32 À©µµ¿ì Å©±â º¯°æ
-            // SWP_NOMOVE: À§Ä¡´Â À¯Áö, SWP_NOZORDER: ·¹ÀÌ¾î ¼ø¼­ À¯Áö
+            // 2. ì‹¤ì œ Win32 ìœˆë„ìš° í¬ê¸° ë³€ê²½
+            // SWP_NOMOVE: ìœ„ì¹˜ëŠ” ìœ ì§€, SWP_NOZORDER: ë ˆì´ì–´ ìˆœì„œ ìœ ì§€
             RECT rc = { 0, 0, win.Width, win.Height };
             AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 
             SetWindowPos(win.hWnd, NULL, 0, 0, rc.right - rc.left, rc.bottom - rc.top, SWP_NOMOVE | SWP_NOZORDER);
 
-            // 3. DX11 ¹é¹öÆÛ ¹× RTV ¸®»çÀÌÁî (GraphicsContext¿¡ Á¤ÀÇµÈ ÇÔ¼ö È£Ãâ)
-            gfx->Resize(win.Width, win.Height);
+            // 3. DX11 ë°±ë²„í¼ ë° RTV ë¦¬ì‚¬ì´ì¦ˆ (GraphicsContextì— ì •ì˜ëœ í•¨ìˆ˜ í˜¸ì¶œ)
+            gfx.Resize(win.Width, win.Height);
 
             printf("[Engine] Window Resized to 600x600\n");
         }
 
-        // 2. ¿ùµå ³» ¸ğµç ¿ÀºêÁ§Æ®¿¡ ÀÔ·Â ÀüÆÄ
+        // 2. ì›”ë“œ ë‚´ ëª¨ë“  ì˜¤ë¸Œì íŠ¸ì— ì…ë ¥ ì „íŒŒ
         int objectCount = (int)world.size();
         for (int i = 0; i < objectCount; i++)
         {
@@ -527,7 +517,7 @@ public:
         {
             if (world[i] != nullptr)
             {
-                world[i]->Update(dt);
+                world[i]->Update(dt, &gfx);
             }
         }
     }
@@ -535,17 +525,17 @@ public:
     void Render()
     {
         float col[] = { 0.1f, 0.2f, 0.3f, 1.0f };
-        gfx->GetImmediateContext()->ClearRenderTargetView(gfx->GetRTV(), col);
+        gfx.ImmediateContext->ClearRenderTargetView(gfx.RTV, col);
 
         D3D11_VIEWPORT vp = { 0, 0, (float)win.Width, (float)win.Height, 0, 1 };
-        gfx->GetImmediateContext()->RSSetViewports(1, &vp);
-        gfx->GetImmediateContext()->OMSetRenderTargets(1, (gfx->GetRTV()), NULL);
+        gfx.ImmediateContext->RSSetViewports(1, &vp);
+        gfx.ImmediateContext->OMSetRenderTargets(1, &gfx.RTV, NULL);
 
         if (pDefaultLayout)
         {
-            gfx->GetImmediateContext()->IASetInputLayout(pDefaultLayout);
+            gfx.ImmediateContext->IASetInputLayout(pDefaultLayout);
         }
-        gfx->GetImmediateContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        gfx.ImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         for (int i = 0; i < (int)world.size(); i++)
         {
@@ -554,7 +544,7 @@ public:
                 world[i]->Render(&gfx);
             }
         }
-        gfx->GetSwapChain()->Present(gfx->GetVSync(), 0);
+        gfx.SwapChain->Present(gfx.VSync, 0);
     }
 
     void Run()
@@ -576,6 +566,9 @@ public:
     }
 };
 
+GameLoop* GameLoop::m_pInstance = nullptr;
+
+
 LRESULT CALLBACK GlobalWndProc(HWND h, UINT m, WPARAM w, LPARAM l)
 {
     if (m == WM_DESTROY) PostQuitMessage(0);
@@ -584,8 +577,9 @@ LRESULT CALLBACK GlobalWndProc(HWND h, UINT m, WPARAM w, LPARAM l)
 
 int WINAPI WinMain(HINSTANCE hI, HINSTANCE, LPSTR, int nS)
 {
-    GameLoop gEngine;
-    gEngine.Initialize(hI, GlobalWndProc);
+    GameLoop* gEngine = nullptr;
+    gEngine = gEngine->GetInstance();
+    gEngine->Initialize(hI, GlobalWndProc);
 
     std::string triShader = R"(
         cbuffer cb0 : register(b0) { matrix matWorld; };
@@ -599,15 +593,15 @@ int WINAPI WinMain(HINSTANCE hI, HINSTANCE, LPSTR, int nS)
         }
         float4 PS(PS_IN input) : SV_Target { return input.col; }
     )";;
-    ID3DBlob* vsBlob = gEngine.gfx.CompileShader(triShader, "VS", "vs_5_0");
-    ID3DBlob* psBlob = gEngine.gfx.CompileShader(triShader, "PS", "ps_5_0");
+    ID3DBlob* vsBlob = gEngine->Getgfx().CompileShader(triShader, "VS", "vs_5_0");
+    ID3DBlob* psBlob = gEngine->Getgfx().CompileShader(triShader, "PS", "ps_5_0");
 
 
     // ====================================================
-    //  È²±İº° (Player)
+    //  í™©ê¸ˆë³„ (Player)
     // ====================================================
     Mesh* goldMesh = new Mesh();
-    goldMesh->color = { 1.0f, 0.85f, 0.0f, 1.0f }; // È²±İ»ö
+    goldMesh->color = { 1.0f, 0.85f, 0.0f, 1.0f }; // í™©ê¸ˆìƒ‰
     goldMesh->vertexCount = 30;
 
     float outerR = 0.5f; float innerR = 0.2f;
@@ -618,17 +612,17 @@ int WINAPI WinMain(HINSTANCE hI, HINSTANCE, LPSTR, int nS)
 
         if (i % 2 == 0)
         {
-            r = outerR; // ¹Ù±ùÂÊ ¹İÁö¸§(outerR)À» ´ëÀÔ
+            r = outerR; // ë°”ê¹¥ìª½ ë°˜ì§€ë¦„(outerR)ì„ ëŒ€ì…
         }
         else
         {
-            r = innerR; // ¾ÈÂÊ ¹İÁö¸§(innerR)À» ´ëÀÔ
+            r = innerR; // ì•ˆìª½ ë°˜ì§€ë¦„(innerR)ì„ ëŒ€ì…
         }
         float angle = XM_PIDIV2 - (i * XM_2PI / 10.0f);
         p[i] = { cosf(angle) * r, sinf(angle) * r, 0.0f };
     }
 
-    //Á¤¼®´ë·Î ±×¸®±â
+    //ì •ì„ëŒ€ë¡œ ê·¸ë¦¬ê¸°
     std::vector<Vertex> vGold;
     for (int i = 0; i < 10; i++)
     {
@@ -637,44 +631,44 @@ int WINAPI WinMain(HINSTANCE hI, HINSTANCE, LPSTR, int nS)
         vGold.push_back({ p[(i + 1) % 10], goldMesh->color });
     }
 
-    // ¸®¼Ò½º »ı¼º (È²±İº°¿ë)
-    gEngine.gfx.Device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, &goldMesh->pVS);
-    gEngine.gfx.Device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), NULL, &goldMesh->pPS);
+    // ë¦¬ì†ŒìŠ¤ ìƒì„± (í™©ê¸ˆë³„ìš©)
+    gEngine->Getgfx().Device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, &goldMesh->pVS);
+    gEngine->Getgfx().Device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), NULL, &goldMesh->pPS);
 
     D3D11_BUFFER_DESC bd = { 0 };
     bd.Usage = D3D11_USAGE_DEFAULT;
     bd.ByteWidth = sizeof(Vertex) * (UINT)vGold.size();
     bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     D3D11_SUBRESOURCE_DATA sd = { vGold.data() };
-    gEngine.gfx.Device->CreateBuffer(&bd, &sd, &goldMesh->vBuffer);
+    gEngine->Getgfx().Device->CreateBuffer(&bd, &sd, &goldMesh->vBuffer);
 
     D3D11_INPUT_ELEMENT_DESC ied[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
     };
-    gEngine.gfx.Device->CreateInputLayout(ied, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &goldMesh->pInputLayout);
+    gEngine->Getgfx().Device->CreateInputLayout(ied, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &goldMesh->pInputLayout);
 
 
-    // È²±İº° °´Ã¼ µî·Ï (PlayerController Æ÷ÇÔ)
+    // í™©ê¸ˆë³„ ê°ì²´ ë“±ë¡ (PlayerController í¬í•¨)
     GameObject* gStar = new GameObject(0, 0, 0);
     gStar->scale = { 0.5f, 0.5f, 1.0f };
 
-    // ±âÁ¸ PlayerController ´ë½Å StarController »ç¿ë
+    // ê¸°ì¡´ PlayerController ëŒ€ì‹  StarController ì‚¬ìš©
     gStar->AddComponent(new MeshRenderer(goldMesh));
     gStar->AddComponent(new PlayerController());
 
-    gEngine.world.push_back(gStar);
+    gEngine->Getworld().push_back(gStar);
 
     // ====================================================
-    // Ãß°¡µÇ´Â ·£´ı º° n°³ (Background Stars)
+    // ì¶”ê°€ë˜ëŠ” ëœë¤ ë³„ nê°œ (Background Stars)
     // ====================================================
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> disPos(-1.2f, 1.2f);
     std::uniform_real_distribution<float> disCol(0.3f, 0.9f);
-    std::uniform_real_distribution<float> disScale(0.05f, 0.4f); // ÃÖ´ë 0.5 (È­¸é 1/4)
+    std::uniform_real_distribution<float> disScale(0.05f, 0.4f); // ìµœëŒ€ 0.5 (í™”ë©´ 1/4)
 
-    int n = 20; // Ãß°¡ÇÒ º° °³¼ö
+    int n = 20; // ì¶”ê°€í•  ë³„ ê°œìˆ˜
     for (int k = 0; k < n; k++)
     {
         Mesh* randMesh = new Mesh();
@@ -688,34 +682,35 @@ int WINAPI WinMain(HINSTANCE hI, HINSTANCE, LPSTR, int nS)
             vRand.push_back({ p[(i + 1) % 10], randMesh->color });
         }
 
-        // ¸®¼Ò½º »ı¼º (°¢ º°¸¶´Ù °íÀ¯ »ö»ó ¹öÆÛ »ı¼º)
-        gEngine.gfx.Device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, &randMesh->pVS);
-        gEngine.gfx.Device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), NULL, &randMesh->pPS);
+        // ë¦¬ì†ŒìŠ¤ ìƒì„± (ê° ë³„ë§ˆë‹¤ ê³ ìœ  ìƒ‰ìƒ ë²„í¼ ìƒì„±)
+        gEngine->Getgfx().Device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, &randMesh->pVS);
+        gEngine->Getgfx().Device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), NULL, &randMesh->pPS);
 
-        gEngine.gfx.Device->CreateInputLayout(ied, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &randMesh->pInputLayout);
+        gEngine->Getgfx().Device->CreateInputLayout(ied, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &randMesh->pInputLayout);
 
         bd.ByteWidth = sizeof(Vertex) * (UINT)vRand.size();
         sd.pSysMem = vRand.data();
-        gEngine.gfx.Device->CreateBuffer(&bd, &sd, &randMesh->vBuffer);
+        gEngine->Getgfx().Device->CreateBuffer(&bd, &sd, &randMesh->vBuffer);
 
         GameObject* bgStar = new GameObject(disPos(gen), disPos(gen), 0);
         float s = disScale(gen);
         bgStar->scale = { s, s, 1.0f };
 
-        // 1. ·»´õ·¯ Ãß°¡
+        // 1. ë Œë”ëŸ¬ ì¶”ê°€
         bgStar->AddComponent(new MeshRenderer(randMesh));
 
-        // [ÇÙ½É Ãß°¡] ¸ğµç ·£´ı º°¿¡°Ôµµ ÄÁÆ®·Ñ·¯¸¦ ´Ş¾ÆÁİ´Ï´Ù!
-        // ÀÌÁ¦ ÀÌ º°µéµµ Å°º¸µå ÀÔ·Â¿¡ ¹İÀÀÇÏ¸ç, °¢ÀÚÀÇ s °ª¿¡ µû¶ó ¼Óµµ°¡ °áÁ¤µË´Ï´Ù.
+        // [í•µì‹¬ ì¶”ê°€] ëª¨ë“  ëœë¤ ë³„ì—ê²Œë„ ì»¨íŠ¸ë¡¤ëŸ¬ë¥¼ ë‹¬ì•„ì¤ë‹ˆë‹¤!
+        // ì´ì œ ì´ ë³„ë“¤ë„ í‚¤ë³´ë“œ ì…ë ¥ì— ë°˜ì‘í•˜ë©°, ê°ìì˜ s ê°’ì— ë”°ë¼ ì†ë„ê°€ ê²°ì •ë©ë‹ˆë‹¤.
         bgStar->AddComponent(new PlayerController());
 
-        gEngine.world.push_back(bgStar);
+        gEngine->Getworld().push_back(bgStar);
     }
 
     vsBlob->Release(); psBlob->Release();
 
 
-    gEngine.Run();
+    gEngine->Run();
+    
 
     return 0;
 }
